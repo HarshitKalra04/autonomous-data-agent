@@ -23,7 +23,7 @@ Goal + CSV
 |---|---|
 | Perceive | `inspect_dataset` profiles the file: shape, types, missing values, statistics, sample rows |
 | Reason | The LLM explains its plan, then picks a tool |
-| Act | `run_python` executes LLM-written code in a separate process (60s timeout) |
+| Act | `run_python` executes LLM-written code in a separate process (180s timeout) |
 | Self-correct | Errors and suspicious output are returned to the LLM, which diagnoses and retries |
 | Finish | The LLM decides when it has enough evidence and calls `finish` with the report |
 
@@ -40,6 +40,7 @@ autonomous-data-agent/
 │   ├── sandbox.py       # runs generated code in a subprocess with a timeout
 │   └── prompts.py       # system prompt
 ├── sample_data/         # synthetic sales.csv and the script that made it
+├── example_output/      # a saved report and charts from a real run
 ├── outputs/             # one folder per run (report, charts, scripts, log)
 ├── requirements.txt
 └── .env.example
@@ -49,7 +50,11 @@ autonomous-data-agent/
 
 Requires Python 3.10 or newer.
 
-1. Get the code and open a terminal in the project folder.
+1. Get the code and open a terminal in the project folder:
+   ```bash
+   git clone https://github.com/HarshitKalra04/autonomous-data-agent.git
+   cd autonomous-data-agent
+   ```
 2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
@@ -73,11 +78,13 @@ Requires Python 3.10 or newer.
    | Provider | LLM_BASE_URL | LLM_MODEL (example) |
    |---|---|---|
    | OpenAI | *(leave empty)* | `gpt-4o-mini` |
-   | Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` |
+   | Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.1-flash-lite` |
    | Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
    | Ollama (local) | `http://localhost:11434/v1` | any tool-capable model |
 
    The model must support tool/function calling.
+
+   A free Gemini key can be created at aistudio.google.com (API keys page). Free tiers have daily request limits, so pick a model with enough requests per day (`gemini-3.1-flash-lite` works well).
 
 ## Usage
 
@@ -136,10 +143,10 @@ Action: run_python
 Result: exit code: 1
 STDERR:
 Traceback (most recent call last):
-  File "C:\Users\kalra\OneDrive\Desktop\Projects\autonomous-data-agent\outputs\run_20261120_025653\scripts\step_02.py", line 27, in <module>
+  File "outputs\run_20261120_025653\scripts\step_02.py", line 27, in <module>
     beta, residuals, rank, s = np.linalg.lstsq(X, y, rcond=None)
                                ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-  File "C:\Users\kalra\OneDrive\Desktop\Projects\autonomous-data-agent\ve ...
+  File "ve ...
 
 === Step 4/15 ===
 Action: run_python
@@ -159,7 +166,7 @@ Action: run_python
 Result: exit code: 1
 STDERR:
 Traceback (most recent call last):
-  File "C:\Users\kalra\OneDrive\Desktop\Projects\autonomous-data-agent\outputs\run_20261120_025653\scripts\step_04.py", line 8, in <module>
+  File "outputs\run_20261120_025653\scripts\step_04.py", line 8, in <module>
     import seaborn as sns # seaborn is typically available but let's stick to matplotlib for safety
     ^^^^^^^^^^^^^^^^^^^^^
 ModuleNotFoundError: No module named 'seaborn'
@@ -182,16 +189,18 @@ units_sold      -0.461109      0.480340         0.548658    1.000000
 
 === Step 8/15 ===
 Action: finish
-Result: Report saved to C:\Users\kalra\OneDrive\Desktop\Projects\autonomous-data-agent\outputs\run_20261120_025653\report.md.
+Result: Report saved to outputs\run_20261120_025653\report.md.
 
-Done. Report: C:\Users\kalra\OneDrive\Desktop\Projects\autonomous-data-agent\outputs\run_20261120_025653\report.md
+Done. Report: outputs\run_20261120_025653\report.md
 ```
+
+In this run the agent corrected itself twice without help: step 3 failed with a code error and step 5 failed because `seaborn` is not installed. In both cases it read the error and switched approach. The full report and charts are in `example_output/`.
 
 ## Safeguards
 
 - **Step limit:** the loop stops after `--max-steps`, and the agent is told when its last step arrives.
-- **Timeout:** generated code is killed after 60 seconds.
-- **Error recovery:** tool errors, bad JSON arguments and API failures (retried with backoff) never crash the run; the LLM sees the error and adapts.
+- **Timeout:** generated code is killed after 180 seconds.
+- **Error recovery:** tool errors and bad JSON arguments are returned to the LLM, which adapts. Temporary API failures (rate limits, server errors) are retried with increasing waits; permanent ones (a wrong key or model name) stop immediately with a clear message.
 - **Output truncation:** long outputs are shortened so the LLM context is not flooded.
 
 ## Limitations
