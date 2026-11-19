@@ -73,7 +73,7 @@ Requires Python 3.10 or newer.
    | Provider | LLM_BASE_URL | LLM_MODEL (example) |
    |---|---|---|
    | OpenAI | *(leave empty)* | `gpt-4o-mini` |
-   | Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-2.5-flash` |
+   | Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai/` | `gemini-3.1-flash-lite` |
    | Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
    | Ollama (local) | `http://localhost:11434/v1` | any tool-capable model |
 
