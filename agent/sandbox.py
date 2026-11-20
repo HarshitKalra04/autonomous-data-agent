@@ -5,6 +5,7 @@ This is process isolation, not a hardened security sandbox. See README.
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 MAX_OUTPUT_CHARS = 4000
 
@@ -17,18 +18,20 @@ def _truncate(text: str, limit: int = MAX_OUTPUT_CHARS) -> str:
     return text[:half] + "\n...[output truncated]...\n" + text[-half:]
 
 
-def run_code(code: str, data_path: Path, run_dir: Path, step: int, timeout: int = 180) -> str:
+def run_code(code: str, data_path: Optional[Path], run_dir: Path, step: int, timeout: int = 180) -> str:
     """Execute `code` and return a text observation for the LLM."""
     charts_dir = run_dir / "charts"
     scripts_dir = run_dir / "scripts"
-    charts_dir.mkdir(exist_ok=True)
-    scripts_dir.mkdir(exist_ok=True)
+    data_dir = run_dir / "data"
+    for d in (charts_dir, scripts_dir, data_dir):
+        d.mkdir(exist_ok=True)
 
     # Variables the LLM's code can rely on.
     preamble = (
         "import matplotlib\n"
         "matplotlib.use('Agg')\n"
-        f"DATA_PATH = {str(data_path)!r}\n"
+        f"DATA_PATH = {str(data_path) if data_path else None!r}\n"
+        f"DATA_DIR = {str(data_dir)!r}\n"
         f"OUTPUT_DIR = {str(run_dir)!r}\n"
         f"CHARTS_DIR = {str(charts_dir)!r}\n"
     )
